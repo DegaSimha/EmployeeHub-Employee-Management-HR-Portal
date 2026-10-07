@@ -100,6 +100,27 @@ Vercel's static hosting cannot run this Spring Boot application. The web pages a
 
 `ADMIN_PASSWORD` must be at least 16 characters when demo seeding is disabled. Use a unique random secret for it and `JWT_SECRET`; enter both only as Railway service variables. Demo accounts and sample HR data are for local evaluation only. Before storing real employee information, also configure database backups, access controls and your organization's privacy requirements.
 
+## Deploy the complete app to Render
+
+Render can run the Spring Boot app using the included Dockerfile and [`render.yaml`](./render.yaml). Render does not provide a managed MySQL service, so first create a MySQL database with a hosted provider that accepts secure connections from Render. A MySQL server running only on your computer will not work. Check the database provider's cost, backups, TLS, and network allow-listing before using it.
+
+1. In Render, choose **New** → **Blueprint**, connect this GitHub repository, and select the `main` branch. Render reads `render.yaml` and creates the EmployeeHub web service.
+2. In the web service's **Environment** settings, provide:
+
+   ```text
+   DB_URL=jdbc:mysql://<MYSQL_HOST>:<MYSQL_PORT>/<MYSQL_DATABASE>?sslMode=REQUIRED&serverTimezone=UTC
+   DB_USERNAME=<MYSQL_USERNAME>
+   DB_PASSWORD=<MYSQL_PASSWORD>
+   JWT_SECRET=<a unique cryptographically random secret of at least 32 bytes>
+   ADMIN_EMAIL=<your administrator email>
+   ADMIN_PASSWORD=<a unique password of at least 16 characters>
+   ```
+
+   Use the exact TLS settings and connection details required by your MySQL provider. Keep the database credentials and application secrets in Render's Environment settings only. `SEED_DEMO_DATA=false` is set in the Blueprint; Render supplies `PORT` automatically.
+3. Wait for the Docker build and deploy to complete. Open the service's `onrender.com` URL. The first start creates the tables and the configured admin account, but no demo employees or sample HR records.
+
+The Blueprint uses Render's free web-service plan for demonstration. Free instances can spin down when idle and take longer to respond when started again; verify current Render limits/pricing in its dashboard. Do not use demo credentials or this free deployment for real employee data. Configure database backups and required security/privacy controls before production use.
+
 ### Demo accounts
 
 | Role | Email | Password |
