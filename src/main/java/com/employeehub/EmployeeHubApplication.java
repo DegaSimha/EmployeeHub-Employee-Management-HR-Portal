@@ -7,6 +7,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -27,7 +28,11 @@ public class EmployeeHubApplication {
                                UserRepository users, AttendanceRepository attendance,
                                LeaveRepository leaves, com.employeehub.repository.CompanyHolidayRepository holidays,
                                PasswordEncoder encoder,
-                               PlatformTransactionManager transactionManager) {
+                               PlatformTransactionManager transactionManager,
+                               @Value("${app.seed.demo-data:true}") boolean seedDemoData,
+                               @Value("${app.seed.admin-email:admin@employeehub.com}") String adminEmail,
+                               @Value("${app.seed.admin-password:Admin@123}") String adminPassword,
+                               @Value("${app.seed.employee-password:Employee@123}") String employeePassword) {
         return args -> new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
             seedDepartment(departments, "Engineering", "Product engineering and technology", "Arjun Reddy");
             seedDepartment(departments, "People & Culture", "People operations and talent", "Priya Sharma");
@@ -41,7 +46,14 @@ public class EmployeeHubApplication {
             seedHoliday(holidays, "Independence Day", LocalDate.of(LocalDate.now().getYear(), Month.JULY, 4), "Company holiday.");
             seedHoliday(holidays, "Labor Day", LocalDate.of(LocalDate.now().getYear(), Month.SEPTEMBER, 7), "Company holiday.");
             seedHoliday(holidays, "Winter Break", LocalDate.of(LocalDate.now().getYear(), Month.DECEMBER, 25), "Company winter break.");
-            if (users.existsByEmail("admin@employeehub.com")) return;
+            if (users.existsByEmail(adminEmail)) return;
+            if (!seedDemoData) {
+                if (adminPassword.length() < 16) {
+                    throw new IllegalStateException("ADMIN_PASSWORD must contain at least 16 characters when SEED_DEMO_DATA is false.");
+                }
+                users.save(new UserAccount(adminEmail, encoder.encode(adminPassword), Role.ADMIN, null));
+                return;
+            }
             Department engineering = departments.findByNameIgnoreCase("Engineering").orElseThrow();
             Department people = departments.findByNameIgnoreCase("People & Culture").orElseThrow();
             Department finance = departments.findByNameIgnoreCase("Finance").orElseThrow();
@@ -69,9 +81,9 @@ public class EmployeeHubApplication {
                         EmploymentType.FULL_TIME, EmployeeStatus.ACTIVE,
                         (100 + i) + " Market Street", "San Francisco", "California", "United States");
                 seeded[i] = employees.save(employee);
-                users.save(new UserAccount(row[3], encoder.encode("Employee@123"), Role.EMPLOYEE, employee));
+                users.save(new UserAccount(row[3], encoder.encode(employeePassword), Role.EMPLOYEE, employee));
             }
-            users.save(new UserAccount("admin@employeehub.com", encoder.encode("Admin@123"), Role.ADMIN, null));
+            users.save(new UserAccount(adminEmail, encoder.encode(adminPassword), Role.ADMIN, null));
             for (int i = 0; i < seeded.length; i++) {
                 attendance.save(new AttendanceRecord(seeded[i], LocalDate.now().minusDays(i % 4),
                         LocalTime.of(9, i % 3 * 5), LocalTime.of(17, 30 + i % 3 * 10),

@@ -76,6 +76,30 @@ Prerequisites: JDK 17+, Maven 3.9+, and MySQL 8+ running locally.
 
 4. Open [http://localhost:8081](http://localhost:8081). On the first successful database startup, the application creates demo data. It does not overwrite an existing database.
 
+## Deploy the complete app to Railway
+
+Vercel's static hosting cannot run this Spring Boot application. The web pages and REST API are served together by Spring Boot, and the app also needs a reachable MySQL database. Deploy both the app and a MySQL service in Railway instead:
+
+1. Push this repository to GitHub, then create a Railway project and choose **Deploy from GitHub repo**. Select this repository and deploy from its root; Railway will build the included `Dockerfile` and run the integration tests during the image build.
+2. In the same Railway project and environment, add a **MySQL** service. Wait for it to finish provisioning.
+3. In the EmployeeHub service's **Variables**, add the database variables below. Use Railway's variable picker to reference the MySQL service (replace `MySQL` with the actual Railway service name if it differs):
+
+   ```text
+   DB_URL=jdbc:mysql://${{MySQL.MYSQLHOST}}:${{MySQL.MYSQLPORT}}/${{MySQL.MYSQLDATABASE}}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+   DB_USERNAME=${{MySQL.MYSQLUSER}}
+   DB_PASSWORD=${{MySQL.MYSQLPASSWORD}}
+   JWT_SECRET=<a unique cryptographically random secret of at least 32 bytes>
+   SEED_DEMO_DATA=false
+   ADMIN_EMAIL=<your administrator email>
+   ADMIN_PASSWORD=<a unique password of at least 16 characters>
+   ```
+
+   Keep the database on Railway's private network; do not use a public database URL or commit these values to GitHub. `PORT` is supplied by Railway and the Spring Boot server binds to it automatically.
+4. Redeploy the EmployeeHub service after setting the variables. In **Networking**, generate a public domain for the EmployeeHub service (not the MySQL service).
+5. Open the generated HTTPS URL. On the first start, Hibernate creates the tables and the app creates the administrator account from `ADMIN_EMAIL` and `ADMIN_PASSWORD`; it does not create the demo employee accounts or demo HR records when `SEED_DEMO_DATA=false`. Later restarts do not overwrite the existing administrator password.
+
+`ADMIN_PASSWORD` must be at least 16 characters when demo seeding is disabled. Use a unique random secret for it and `JWT_SECRET`; enter both only as Railway service variables. Demo accounts and sample HR data are for local evaluation only. Before storing real employee information, also configure database backups, access controls and your organization's privacy requirements.
+
 ### Demo accounts
 
 | Role | Email | Password |
